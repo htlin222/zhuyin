@@ -1,397 +1,423 @@
-import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
-import { Play, Pause, Upload, MoreVertical } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { useState } from 'react';
+import { IoReload } from 'react-icons/io5';
 
-const sampleMarkdown = `# Cast
-* John Smith as Hero
-* Jane Doe as Heroine
-* Bob Wilson as Villain
-
-# Crew
-* Director: James Cameron
-* Producer: Steven Spielberg
-* Writer: Christopher Nolan
-
-# Special Thanks
-* Coffee Machine
-* Pizza Delivery
-* Stack Overflow`;
-
-const CreditsRoll = () => {
-  const [markdown, setMarkdown] = useState(sampleMarkdown);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [startOffset, setStartOffset] = useState(133); // Default 100% (just below window)
-  const [showSettings, setShowSettings] = useState(false);
-  const [fontSize, setFontSize] = useState(16); // Base font size in px
+// 注音符號與其位置的映射（保持不變）
+const ZHUYIN_KEYS = [
+  // 聲母 - 第一區
+  { key: 'ㄅ', x: 0, y: 0, type: 'consonants' },
+  { key: 'ㄆ', x: 0, y: 1, type: 'consonants' },
+  { key: 'ㄇ', x: 0, y: 2, type: 'consonants' },
+  { key: 'ㄈ', x: 0, y: 3, type: 'consonants' },
   
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFontSize(parseInt(e.target.value));
-  };
-  const containerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [windowHeight, setWindowHeight] = useState(0);
+  { key: 'ㄉ', x: 1, y: 0, type: 'consonants' },
+  { key: 'ㄊ', x: 1, y: 1, type: 'consonants' },
+  { key: 'ㄋ', x: 1, y: 2, type: 'consonants' },
+  { key: 'ㄌ', x: 1, y: 3, type: 'consonants' },
 
-  useEffect(() => {
-    if (contentRef.current && contentRef.current.offsetHeight) {
-      setContentHeight(contentRef.current.offsetHeight);
-    }
-    setWindowHeight(window.innerHeight);
+  { key: 'ㄍ', x: 2, y: 0, type: 'consonants' },
+  { key: 'ㄎ', x: 2, y: 1, type: 'consonants' },
+  { key: 'ㄏ', x: 2, y: 2, type: 'consonants' },
 
-    const handleResize = () => {
-      setWindowHeight(window.innerHeight);
-    };
+  { key: 'ㄐ', x: 3, y: 0, type: 'consonants' },
+  { key: 'ㄑ', x: 3, y: 1, type: 'consonants' },
+  { key: 'ㄒ', x: 3, y: 2, type: 'consonants' },
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [markdown]);
+  { key: 'ㄓ', x: 4, y: 0, type: 'consonants' },
+  { key: 'ㄔ', x: 4, y: 1, type: 'consonants' },
+  { key: 'ㄕ', x: 4, y: 2, type: 'consonants' },
+  { key: 'ㄖ', x: 4, y: 3, type: 'consonants' },
 
-  const { toast } = useToast();
-  
-  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  { key: 'ㄗ', x: 5, y: 0, type: 'consonants' },
+  { key: 'ㄘ', x: 5, y: 1, type: 'consonants' },
+  { key: 'ㄙ', x: 5, y: 2, type: 'consonants' },
+
+  // 韻母 - 第二區
+  { key: 'ㄧ', x: 7, y: 0, type: 'vowels' },
+  { key: 'ㄨ', x: 7, y: 1, type: 'vowels' },
+  { key: 'ㄩ', x: 7, y: 2, type: 'vowels' },
+
+  { key: 'ㄚ', x: 8, y: 0, type: 'vowels' },
+  { key: 'ㄛ', x: 8, y: 1, type: 'vowels' },
+  { key: 'ㄜ', x: 8, y: 2, type: 'vowels' },
+  { key: 'ㄝ', x: 8, y: 3, type: 'vowels' },
+
+  { key: 'ㄞ', x: 9, y: 0, type: 'vowels' },
+  { key: 'ㄟ', x: 9, y: 1, type: 'vowels' },
+  { key: 'ㄠ', x: 9, y: 2, type: 'vowels' },
+  { key: 'ㄡ', x: 9, y: 3, type: 'vowels' },
+
+  { key: 'ㄢ', x: 10, y: 0, type: 'vowels' },
+  { key: 'ㄣ', x: 10, y: 1, type: 'vowels' },
+  { key: 'ㄤ', x: 10, y: 2, type: 'vowels' },
+  { key: 'ㄥ', x: 10, y: 3, type: 'vowels' },
+  { key: 'ㄦ', x: 10, y: 4, type: 'vowels' },
+
+  // 聲調 - 第三區
+  { key: 'ˊ', x: 11, y: 0, type: 'tones' },
+  { key: 'ˇ', x: 11, y: 1, type: 'tones' },
+  { key: 'ˋ', x: 11, y: 2, type: 'tones' },
+  { key: '˙', x: 11, y: 3, type: 'tones' }
+];
+
+const ZhuyinTypingGame = () => {
+  const [typedText, setTypedText] = useState('');
+  const [targetChar, setTargetChar] = useState('好');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tempChar, setTempChar] = useState('');
+
+  const handleKeyClick = (key) => {
+    const isTone = ['ˊ', 'ˇ', 'ˋ', '˙'].includes(key);
+    const isConsonant = ZHUYIN_KEYS.some(k => k.type === 'consonants' && k.key === key);
+    const isSpecialVowel = ['ㄧ', 'ㄨ', 'ㄩ'].includes(key);
+    const isRegularVowel = ZHUYIN_KEYS.some(k => k.type === 'vowels' && !['ㄧ', 'ㄨ', 'ㄩ'].includes(k.key) && k.key === key);
     
-    if (!file.name.endsWith('.md')) {
-      toast({
-        title: 'Invalid File',
-        description: 'Please upload a .md file',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e: ProgressEvent<FileReader>) => {
-      if (typeof e.target?.result === 'string') {
-        setMarkdown(e.target.result);
-        toast({
-          title: 'File Uploaded',
-          description: `Successfully loaded ${file.name}`,
-        });
+    let newText = typedText;
+    
+    if (isConsonant) {
+      // For consonants, replace any existing consonant or place at start
+      const hasConsonant = ZHUYIN_KEYS.some(k => k.type === 'consonants' && typedText.includes(k.key));
+      if (hasConsonant) {
+        // Replace existing consonant while preserving other characters
+        const nonConsonants = typedText.split('').filter(char => 
+          !ZHUYIN_KEYS.some(k => k.type === 'consonants' && k.key === char)
+        ).join('');
+        newText = key + nonConsonants;
       } else {
-        toast({
-          title: 'Upload Failed',
-          description: 'Could not read file content',
-          variant: 'destructive',
-        });
+        // Place consonant at start
+        newText = key + typedText;
       }
-    };
-    reader.onerror = () => {
-      toast({
-        title: 'Upload Failed',
-        description: 'Could not read file',
-        variant: 'destructive',
-      });
-    };
-    reader.readAsText(file);
-  };
-
-  const animationFrameRef = useRef<number>();
-  const startTimeRef = useRef<number>(0);
-  const [currentPosition, setCurrentPosition] = useState(0);
-
-  const animate = (timestamp: number) => {
-    if (!startTimeRef.current) {
-      startTimeRef.current = timestamp;
-    }
-    
-    const elapsed = timestamp - startTimeRef.current;
-    const progress = (elapsed / 1000) * speed * 100; // pixels per second
-    
-    if (containerRef.current) {
-      const newPosition = currentPosition - progress;
-      containerRef.current.style.transform = `translateY(${newPosition}px)`;
-      setCurrentPosition(newPosition);
-      
-      if (isPlaying) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (isPlaying) {
-      startTimeRef.current = 0;
-      animationFrameRef.current = requestAnimationFrame(animate);
-    } else if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [isPlaying, speed]);
-
-  const togglePlay = () => {
-    if (!isPlaying) {
-      startTimeRef.current = performance.now() - (currentPosition / (speed * 100)) * 1000;
-    }
-    setIsPlaying(!isPlaying);
-  };
-
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleReload = () => {
-    setIsPlaying(false);
-    setCurrentPosition(0);
-    if (containerRef.current) {
-      containerRef.current.style.transform = `translateY(0px)`;
-    }
-  };
-
-  const handleSpeedChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const newSpeed = parseFloat(e.target.value);
-    setSpeed(newSpeed);
-    if (containerRef.current) {
-      const duration = (contentHeight + windowHeight) / (100 * newSpeed);
-      containerRef.current.style.animationDuration = `${duration}s`;
-    }
-  };
-
-  const handleOffsetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newOffset = parseInt(e.target.value);
-    setStartOffset(newOffset);
-  };
-
-  const handleAnimationEnd = () => {
-    setIsPlaying(false);
-  };
-
-  useEffect(() => {
-    if (containerRef.current) {
-      const duration = (contentHeight + windowHeight) / (100 * speed);
-      containerRef.current.style.animationDuration = `${duration}s`;
-    }
-  }, [contentHeight, windowHeight, speed, fontSize]);
-
-  useEffect(() => {
-    if (contentRef.current) {
-      setContentHeight(contentRef.current.offsetHeight);
-    }
-  }, [fontSize]);
-
-  const renderMarkdown = (text: string): JSX.Element[] => {
-    const baseSize = fontSize;
-    return text.split('\n').map((line: string, index: number) => {
-      // Handle headers
-      if (line.startsWith('### ')) {
-        return (
-          <h3
-            key={index}
-            style={{ fontSize: baseSize * 1.25 }}
-            className="font-bold mt-8 mb-4 text-white"
-          >
-            {line.slice(4)}
-          </h3>
-        );
-      } else if (line.startsWith('## ')) {
-        return (
-          <h2
-            key={index}
-            style={{ fontSize: baseSize * 1.5 }}
-            className="font-bold mt-10 mb-5 text-white"
-          >
-            {line.slice(3)}
-          </h2>
-        );
-      } else if (line.startsWith('# ')) {
-        return (
-          <h1
-            key={index}
-            style={{ fontSize: baseSize * 2 }}
-            className="font-bold mt-12 mb-6 text-white"
-          >
-            {line.slice(2)}
-          </h1>
-        );
-      }
-      
-      // Handle list items
-      if (line.startsWith('* ') || line.startsWith('- ')) {
-        const content = line.slice(2);
-        const formattedContent = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        return (
-          <p
-            key={index}
-            style={{ fontSize: baseSize }}
-            className="my-6 text-white"
-            dangerouslySetInnerHTML={{ __html: formattedContent }}
-          />
-        );
-      }
-      
-      // Handle regular text with bold formatting
-      const formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      return (
-        <p
-          key={index}
-          style={{ fontSize: baseSize }}
-          className="text-white"
-          dangerouslySetInnerHTML={{ __html: formattedLine }}
-        />
+    } else if (isRegularVowel) {
+      // For regular vowels (not ㄧㄨㄩ), replace existing regular vowel or place at end
+      const hasRegularVowel = ZHUYIN_KEYS.some(k => 
+        k.type === 'vowels' && 
+        !['ㄧ', 'ㄨ', 'ㄩ'].includes(k.key) && 
+        typedText.includes(k.key)
       );
-    });
+      
+      if (hasRegularVowel) {
+        // Remove existing regular vowel and add new one at the end
+        const withoutRegularVowel = typedText.split('').filter(char => 
+          !ZHUYIN_KEYS.some(k => 
+            k.type === 'vowels' && 
+            !['ㄧ', 'ㄨ', 'ㄩ'].includes(k.key) && 
+            k.key === char
+          )
+        ).join('');
+        newText = withoutRegularVowel + key;
+      } else {
+        // Add new regular vowel at the end
+        newText = typedText + key;
+      }
+    } else if (isSpecialVowel) {
+      // Special vowels (ㄧㄨㄩ) should be placed before regular vowels
+      const chars = typedText.split('');
+      const hasRegularVowel = chars.some(char => 
+        ZHUYIN_KEYS.some(k => 
+          k.type === 'vowels' && 
+          !['ㄧ', 'ㄨ', 'ㄩ'].includes(k.key) && 
+          k.key === char
+        )
+      );
+
+      if (hasRegularVowel) {
+        // Separate characters into different types
+        const consonants = chars.filter(char => 
+          ZHUYIN_KEYS.some(k => k.type === 'consonants' && k.key === char)
+        );
+        const specialVowels = chars.filter(char => 
+          ['ㄧ', 'ㄨ', 'ㄩ'].includes(char)
+        );
+        const regularVowel = chars.find(char => 
+          ZHUYIN_KEYS.some(k => 
+            k.type === 'vowels' && 
+            !['ㄧ', 'ㄨ', 'ㄩ'].includes(k.key) && 
+            k.key === char
+          )
+        );
+        const tones = chars.filter(char => 
+          ['ˊ', 'ˇ', 'ˋ', '˙'].includes(char)
+        );
+
+        // Reconstruct the text in the correct order
+        newText = [
+          ...consonants,
+          ...specialVowels,
+          key,
+          regularVowel,
+          ...tones
+        ].filter(Boolean).join('');
+      } else {
+        // If no regular vowel, just append
+        newText = typedText + key;
+      }
+    } else if (isTone) {
+      // Handle tones (mutually exclusive)
+      const hasTone = ['ˊ', 'ˇ', 'ˋ', '˙'].some(tone => typedText.includes(tone));
+      if (hasTone) {
+        newText = typedText.replace(/[ˊˇˋ˙]/g, '') + key;
+      } else {
+        newText = typedText + key;
+      }
+    } else {
+      // For other characters, just append
+      newText = typedText + key;
+    }
+    
+    setTypedText(newText);
+  };
+
+  const handleCharacterClick = () => {
+    setTempChar(targetChar);
+    setIsModalOpen(true);
+  };
+
+  const handleCharacterSubmit = () => {
+    if (tempChar.length === 1) {
+      setTargetChar(tempChar);
+      setTypedText('');
+    }
+    setIsModalOpen(false);
+  };
+
+  const getCharacterType = (char: string) => {
+    if (['ˊ', 'ˇ', 'ˋ', '˙'].includes(char)) return 'tone';
+    if (['ㄧ', 'ㄨ', 'ㄩ'].includes(char)) return 'special-vowel';
+    if (ZHUYIN_KEYS.some(k => k.type === 'consonants' && k.key === char)) return 'consonant';
+    if (ZHUYIN_KEYS.some(k => k.type === 'vowels' && k.key === char)) return 'vowel';
+    return 'other';
+  };
+
+  const getCharacterColor = (type: string) => {
+    switch (type) {
+      case 'consonant': return 'text-blue-600';
+      case 'special-vowel': return 'text-purple-600';
+      case 'vowel': return 'text-green-600';
+      case 'tone': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const getButtonStyle = (key: string) => {
+    const type = getCharacterType(key);
+    const baseStyle = 'w-16 h-16 rounded-xl shadow-md transition-all duration-200 transform hover:scale-105 flex items-center justify-center text-2xl font-bold ';
+    const colorStyle = {
+      consonant: 'bg-blue-50 hover:bg-blue-100 text-blue-600',
+      'special-vowel': 'bg-purple-50 hover:bg-purple-100 text-purple-600',
+      vowel: 'bg-green-50 hover:bg-green-100 text-green-600',
+      tone: 'bg-red-50 hover:bg-red-100 text-red-600',
+      other: 'bg-gray-50 hover:bg-gray-100 text-gray-600'
+    }[type];
+    
+    return baseStyle + colorStyle;
   };
 
   return (
-    <div className="fixed inset-0 bg-black flex flex-col">
-      {/* Control buttons */}
-      <div className="absolute bottom-4 right-4 z-10 flex gap-2">
-        <button
-          onClick={togglePlay}
-          className="bg-white/20 hover:bg-white/30 p-2 rounded-full transition-colors"
-        >
-          {isPlaying ? <Pause className="text-white" size={24} /> : <Play className="text-white" size={24} />}
-        </button>
-        <button
-          onClick={handleReload}
-          className="bg-white/20 hover:bg-white/30 p-2 rounded-full transition-colors"
-          title="Reload"
-          aria-label="Reload credits"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-white"
-          >
-            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-            <path d="M21 3v5h-5" />
-            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-            <path d="M8 16H3v5" />
-          </svg>
-        </button>
-        <button
-          onClick={() => setShowSettings(true)}
-          className="bg-white/20 hover:bg-white/30 p-2 rounded-full transition-colors"
-          title="Settings"
-          aria-label="Open settings"
-          aria-labelledby="settings-button-label"
-        >
-          <MoreVertical className="text-white" size={24} />
-          <span id="settings-button-label" className="sr-only">Settings</span>
-        </button>
-      </div>
-
-      {/* Settings Dialog */}
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="bg-gray-900 text-white border-gray-700">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">Settings</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="space-y-4">
-              <label className="flex flex-col gap-2">
-                <span>Starting Position (Y-offset)</span>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min="0"
-                    max="200"
-                    value={startOffset}
-                    onChange={handleOffsetChange}
-                    className="w-full"
-                    aria-label="Starting position offset"
-                  />
-                  <span className="min-w-[4ch]">{startOffset}%</span>
-                </div>
-              </label>
-
-              <label className="flex flex-col gap-2">
-                <span>Scroll Speed</span>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="2"
-                    step="0.1"
-                    value={speed}
-                    onChange={handleSpeedChange}
-                    className="w-full"
-                  />
-                  <span className="min-w-[3ch]">{speed}x</span>
-                </div>
-              </label>
-
-              <label className="flex flex-col gap-2">
-                <span>Font Size</span>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min="12"
-                    max="32"
-                    step="1"
-                    value={fontSize}
-                    onChange={handleFontSizeChange}
-                    className="w-full"
-                  />
-                  <span className="min-w-[3ch]">{fontSize}px</span>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md transition-colors w-full">
-                <Upload size={20} />
-                <span>Upload Markdown File</span>
-                <input
-                  type="file"
-                  accept=".md"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  aria-label="Upload markdown file"
-                />
-              </label>
+    <div className="w-full min-h-screen pt-16">
+      {/* 目標字顯示區域 */}
+      <div className="flex justify-center mb-2">
+        <div className="flex flex-row items-center gap-4">
+          <div style={{ writingMode: 'vertical-rl' }}>
+            <div className="text-9xl">
+              <ruby>
+                <span 
+                  onClick={handleCharacterClick}
+                  className="cursor-pointer hover:text-blue-600 transition-colors"
+                >
+                  {targetChar}
+                </span>
+                <rt 
+                  className="text-5xl ml-2 relative cursor-pointer" 
+                  onClick={() => setTypedText('')}
+                >
+                  {typedText.split('').map((char, index) => {
+                    const type = getCharacterType(char);
+                    const colorClass = getCharacterColor(type);
+                    
+                    if (type === 'tone') {
+                      const style = char === '˙' 
+                        ? { position: 'absolute', top: '-40px', left: '10%', transform: 'translateX(-50%)', fontSize: '5rem' }
+                        : { position: 'absolute', left: '40px', top: '70%', transform: 'translateY(-50%) rotate(-90deg)', fontSize: '5rem' };
+                      
+                      return <span key={index} className={colorClass} style={style}>{char}</span>;
+                    }
+                    
+                    return <span key={index} className={colorClass}>{char}</span>;
+                  })}
+                </rt>
+              </ruby>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Credits container */}
-      <div className="flex-1 overflow-hidden relative">
-        <div
-          ref={containerRef}
-          className="absolute w-full text-center px-4"
-          style={{
-            animation: isPlaying ? `scroll-up ${20 / speed}s linear forwards` : 'none',
-            transform: isPlaying ? 'none' : `translateY(${startOffset}%)`
-          }}
-          onAnimationEnd={handleAnimationEnd}
-        >
-          <div ref={contentRef}>
-            {renderMarkdown(markdown)}
-          </div>
-          <div className="h-24" /> {/* Small padding at bottom */}
         </div>
       </div>
 
-      <style>{`
-        @keyframes scroll-up {
-          0% {
-            transform: translateY(${startOffset}%);
-          }
-          100% {
-            transform: translateY(-${contentHeight + 96}px);
-          }
-        }
-      `}</style>
+      {/* Character Input Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl">
+            <h2 className="text-xl font-bold mb-4">輸入漢字</h2>
+            <input
+              type="text"
+              value={tempChar}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value.length <= 1) {
+                  setTempChar(value);
+                }
+              }}
+              className="border-2 border-gray-300 rounded-lg p-2 mb-4 text-2xl w-20 text-center"
+              maxLength={1}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleCharacterSubmit}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+              >
+                確定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 注音鍵盤 */}
+      <div className="bg-gray-100 p-8 rounded-2xl w-[90%] mx-auto mt-8" style={{ height: '540px' }}>
+        <div className="flex justify-between">
+          {/* 聲母區 */}
+          <div className="flex flex-col gap-4">
+            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 0).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleKeyClick(item.key)}
+                className={getButtonStyle(item.key)}
+              >
+                {item.key}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-4">
+            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 1).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleKeyClick(item.key)}
+                className={getButtonStyle(item.key)}
+              >
+                {item.key}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-4">
+            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 2).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleKeyClick(item.key)}
+                className={getButtonStyle(item.key)}
+              >
+                {item.key}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-4">
+            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 3).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleKeyClick(item.key)}
+                className={getButtonStyle(item.key)}
+              >
+                {item.key}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-4">
+            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 4).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleKeyClick(item.key)}
+                className={getButtonStyle(item.key)}
+              >
+                {item.key}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-4">
+            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 5).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleKeyClick(item.key)}
+                className={getButtonStyle(item.key)}
+              >
+                {item.key}
+              </button>
+            ))}
+          </div>
+
+          {/* 韻母區 */}
+          <div className="flex flex-col gap-4">
+            {ZHUYIN_KEYS.filter(item => item.type === 'vowels' && item.x === 7).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleKeyClick(item.key)}
+                className={getButtonStyle(item.key)}
+              >
+                {item.key}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-4">
+            {ZHUYIN_KEYS.filter(item => item.type === 'vowels' && item.x === 8).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleKeyClick(item.key)}
+                className={getButtonStyle(item.key)}
+              >
+                {item.key}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-4">
+            {ZHUYIN_KEYS.filter(item => item.type === 'vowels' && item.x === 9).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleKeyClick(item.key)}
+                className={getButtonStyle(item.key)}
+              >
+                {item.key}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-4">
+            {ZHUYIN_KEYS.filter(item => item.type === 'vowels' && item.x === 10).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleKeyClick(item.key)}
+                className={getButtonStyle(item.key)}
+              >
+                {item.key}
+              </button>
+            ))}
+          </div>
+
+          {/* 聲調區 */}
+          <div className="flex flex-col gap-4">
+            {['ˊ', 'ˇ', 'ˋ', '˙'].map((tone) => (
+              <button
+                key={tone}
+                onClick={() => handleKeyClick(tone)}
+                className={getButtonStyle(tone)}
+              >
+                {tone}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default CreditsRoll;
+export default ZhuyinTypingGame;

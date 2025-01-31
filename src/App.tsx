@@ -266,7 +266,7 @@ const ZhuyinTypingGame = () => {
                     
                     if (type === 'tone') {
                       // Find the last non-tone character's index
-                      const lastCharIndex = typedText.split('').findLastIndex((c, i) => i < index && getCharacterType(c) !== 'tone');
+                      const lastCharIndex = typedText.split('').findLastIndex((c: string, i: number) => i < index && getCharacterType(c) !== 'tone');
                       const basePosition = lastCharIndex >= 0 ? lastCharIndex * 60 - 85 : -85;
                       
                       const style: React.CSSProperties = char === '˙' 

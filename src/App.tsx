@@ -109,9 +109,12 @@ const ZhuyinTypingGame = () => {
         newText = typedText + key;
       }
     } else if (isSpecialVowel) {
-      // Special vowels (ㄧㄨㄩ) should be placed before regular vowels
+      // Special vowels (ㄧㄨㄩ) should be placed before regular vowels and are mutually exclusive
       const chars = typedText.split('');
-      const hasRegularVowel = chars.some(char => 
+      // Remove any existing special vowel
+      const charsWithoutSpecialVowel = chars.filter(char => !['ㄧ', 'ㄨ', 'ㄩ'].includes(char));
+      
+      const hasRegularVowel = charsWithoutSpecialVowel.some(char => 
         ZHUYIN_KEYS.some(k => 
           k.type === 'vowels' && 
           !['ㄧ', 'ㄨ', 'ㄩ'].includes(k.key) && 
@@ -121,34 +124,30 @@ const ZhuyinTypingGame = () => {
 
       if (hasRegularVowel) {
         // Separate characters into different types
-        const consonants = chars.filter(char => 
+        const consonants = charsWithoutSpecialVowel.filter(char => 
           ZHUYIN_KEYS.some(k => k.type === 'consonants' && k.key === char)
         );
-        const specialVowels = chars.filter(char => 
-          ['ㄧ', 'ㄨ', 'ㄩ'].includes(char)
-        );
-        const regularVowel = chars.find(char => 
+        const regularVowel = charsWithoutSpecialVowel.find(char => 
           ZHUYIN_KEYS.some(k => 
             k.type === 'vowels' && 
             !['ㄧ', 'ㄨ', 'ㄩ'].includes(k.key) && 
             k.key === char
           )
         );
-        const tones = chars.filter(char => 
+        const tones = charsWithoutSpecialVowel.filter(char => 
           ['ˊ', 'ˇ', 'ˋ', '˙'].includes(char)
         );
 
         // Reconstruct the text in the correct order
         newText = [
           ...consonants,
-          ...specialVowels,
-          key,
+          key, // Add only the new special vowel
           regularVowel,
           ...tones
         ].filter(Boolean).join('');
       } else {
-        // If no regular vowel, just append
-        newText = typedText + key;
+        // If no regular vowel, reconstruct with only the new special vowel
+        newText = [...charsWithoutSpecialVowel, key].join('');
       }
     } else if (isTone) {
       // Handle tones (mutually exclusive)
@@ -167,16 +166,25 @@ const ZhuyinTypingGame = () => {
   };
 
   const handleCharacterClick = () => {
-    setTempChar(targetChar);
+    setTempChar('');
     setIsModalOpen(true);
   };
 
+  const handleCharacterInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTempChar(e.target.value);
+  };
+
   const handleCharacterSubmit = () => {
-    if (tempChar.length === 1) {
-      setTargetChar(tempChar);
+    const lastChar = tempChar.slice(-1);
+    const isSingleChineseChar = /^[\u4e00-\u9fff]$/.test(lastChar);
+    
+    if (isSingleChineseChar) {
+      setTargetChar(lastChar);
       setTypedText('');
+      setIsModalOpen(false);
+    } else {
+      alert('必須是一個中文字');
     }
-    setIsModalOpen(false);
   };
 
   const getCharacterType = (char: string) => {
@@ -199,7 +207,7 @@ const ZhuyinTypingGame = () => {
 
   const getButtonStyle = (key: string) => {
     const type = getCharacterType(key);
-    const baseStyle = 'w-16 h-16 rounded-xl shadow-md transition-all duration-200 transform hover:scale-105 flex items-center justify-center text-2xl font-bold ';
+    const baseStyle = 'w-16 h-16 rounded-xl shadow-md transition-all duration-200 transform hover:scale-125 flex items-center justify-center text-5xl font-bold ';
     const colorStyle = {
       consonant: 'bg-blue-50 hover:bg-blue-100 text-blue-600',
       'special-vowel': 'bg-purple-50 hover:bg-purple-100 text-purple-600',
@@ -212,7 +220,7 @@ const ZhuyinTypingGame = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-16">
+    <div className="w-full min-h-screen pt-16 min-w-[1100px]">
       {/* 目標字顯示區域 */}
       <div className="flex justify-center mb-2">
         <div className="flex flex-row items-center gap-4">
@@ -253,30 +261,25 @@ const ZhuyinTypingGame = () => {
       {/* Character Input Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <h2 className="text-xl font-bold mb-4">輸入漢字</h2>
+          <div className="bg-white p-8 rounded-xl shadow-lg	w-[300px]">
             <input
               type="text"
               value={tempChar}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value.length <= 1) {
-                  setTempChar(value);
-                }
-              }}
-              className="border-2 border-gray-300 rounded-lg p-2 mb-4 text-2xl w-20 text-center"
-              maxLength={1}
+              onChange={handleCharacterInput}
+              className="border-2 border-gray-300 rounded-lg p-4 text-4xl mb-4 w-full"
+              placeholder="一個字"
+              autoFocus
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-4">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
               >
                 取消
               </button>
               <button
                 onClick={handleCharacterSubmit}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
               >
                 確定
               </button>
@@ -286,7 +289,7 @@ const ZhuyinTypingGame = () => {
       )}
 
       {/* 注音鍵盤 */}
-      <div className="bg-gray-100 p-8 rounded-2xl w-[90%] mx-auto mt-8" style={{ height: '540px' }}>
+      <div className="bg-gray-100 p-8 rounded-2xl w-[90%] mx-auto mt-8" style={{ height: '560px' }}>
         <div className="flex justify-between">
           {/* 聲母區 */}
           <div className="flex flex-col gap-4">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // 注音符號與其位置的映射（保持不變）
 const ZHUYIN_KEYS = [
@@ -50,19 +50,32 @@ const ZHUYIN_KEYS = [
   { key: 'ㄤ', x: 10, y: 2, type: 'vowels' },
   { key: 'ㄥ', x: 10, y: 3, type: 'vowels' },
   { key: 'ㄦ', x: 10, y: 4, type: 'vowels' },
-
-  // 聲調 - 第三區
-  { key: 'ˊ', x: 11, y: 0, type: 'tones' },
-  { key: 'ˇ', x: 11, y: 1, type: 'tones' },
-  { key: 'ˋ', x: 11, y: 2, type: 'tones' },
-  { key: '˙', x: 11, y: 3, type: 'tones' }
 ];
+
+const TONE_KEYS = ['ˊ', 'ˇ', 'ˋ', '˙'].map((key, index) => ({
+  key,
+  x: 11,
+  y: index,
+  type: 'tones'
+}));
+
+const ALL_KEYS = [...ZHUYIN_KEYS, ...TONE_KEYS];
 
 const ZhuyinTypingGame = () => {
   const [typedText, setTypedText] = useState('');
   const [targetChar, setTargetChar] = useState('好');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tempChar, setTempChar] = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1100);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleKeyClick = (key: string) => {
     const isTone = ['ˊ', 'ˇ', 'ˋ', '˙'].includes(key);
@@ -157,8 +170,14 @@ const ZhuyinTypingGame = () => {
         newText = typedText + key;
       }
     } else {
-      // For other characters, just append
-      newText = typedText + key;
+      // For other characters, just append and move any existing tone to the end
+      const toneMatch = typedText.match(/[ˊˇˋ˙]/);
+      if (toneMatch) {
+        const tone = toneMatch[0];
+        newText = typedText.replace(/[ˊˇˋ˙]/g, '') + key + tone;
+      } else {
+        newText = typedText + key;
+      }
     }
     
     setTypedText(newText);
@@ -219,39 +238,73 @@ const ZhuyinTypingGame = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-16 min-w-[1100px]">
+    <div className={`w-full min-h-screen pt-16 ${isMobile ? '' : 'min-w-[1100px]'}`}>
       {/* 目標字顯示區域 */}
       <div className="flex justify-center mb-2">
         <div className="flex flex-row items-center gap-4">
           <div style={{ writingMode: 'vertical-rl' }}>
             <div className="text-9xl">
-              <ruby>
+              <div className="relative">
                 <span 
                   onClick={handleCharacterClick}
-                  className="cursor-pointer hover:text-blue-600 transition-colors"
+                  className="cursor-pointer hover:text-blue-600 transition-colors block"
                 >
                   {targetChar}
                 </span>
-                <rt 
-                  className="text-5xl ml-2 relative cursor-pointer" 
+                <div 
+                  className="text-5xl absolute left-full ml-2 cursor-pointer flex flex-col gap-1" 
                   onClick={() => setTypedText('')}
+                  style={{ 
+                    top: '50%', 
+                    transform: 'translateY(100%) translateX(20%)',
+                    transformOrigin: 'left center'
+                  }}
                 >
                   {typedText.split('').map((char, index) => {
                     const type = getCharacterType(char);
                     const colorClass = getCharacterColor(type);
                     
                     if (type === 'tone') {
-                      const style = char === '˙' 
-                        ? { position: 'absolute' as const, top: '-40px', left: '10%', transform: 'translateX(-50%)', fontSize: '5rem' }
-                        : { position: 'absolute' as const, left: '40px', top: '70%', transform: 'translateY(-50%) rotate(-90deg)', fontSize: '5rem' };
+                      // Find the last non-tone character's index
+                      const lastCharIndex = typedText.split('').findLastIndex((c, i) => i < index && getCharacterType(c) !== 'tone');
+                      const basePosition = lastCharIndex >= 0 ? lastCharIndex * 60 - 85 : -85;
+                      
+                      const style: React.CSSProperties = char === '˙' 
+                        ? { 
+                            position: 'absolute', 
+                            top: `${basePosition - 35}px`, 
+                            left: '50%', 
+                            transform: 'translateX(-50%)', 
+                            fontSize: '5rem' 
+                          }
+                        : { 
+                            position: 'absolute', 
+                            top: `${basePosition}px`,
+                            left: '80px', 
+                            transform: 'translateX(-50%) rotate(-90deg)', 
+                            fontSize: '5rem' 
+                          };
                       
                       return <span key={index} className={colorClass} style={style}>{char}</span>;
                     }
                     
-                    return <span key={index} className={colorClass}>{char}</span>;
+                    return (
+                      <span 
+                        key={index} 
+                        className={colorClass}
+                        style={{ 
+                          position: 'absolute',
+                          top: `${(index * 60 - 85)}px`,
+                          left: `0px`,
+                          fontSize: '3rem'
+                        }}
+                      >
+                        {char}
+                      </span>
+                    );
                   })}
-                </rt>
-              </ruby>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -287,136 +340,164 @@ const ZhuyinTypingGame = () => {
         </div>
       )}
 
-      {/* 注音鍵盤 */}
-      <div className="bg-gray-100 p-8 rounded-2xl w-[90%] mx-auto mt-8" style={{ height: '560px' }}>
-        <div className="flex justify-between">
-          {/* 聲母區 */}
-          <div className="flex flex-col gap-4">
-            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 0).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleKeyClick(item.key)}
-                className={getButtonStyle(item.key)}
-              >
-                {item.key}
-              </button>
-            ))}
+      {/* 鍵盤區域 */}
+      <div className="mt-8">
+        {isMobile ? (
+          // Mobile vertical layout
+          <div className="flex flex-col gap-2 mx-auto w-fit">
+            {/* First row */}
+            <div className="flex gap-2">
+              {['ㄅ', 'ㄆ', 'ㄇ', 'ㄈ'].map(char => (
+                <button
+                  key={char}
+                  className={`${getButtonStyle(char)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(char)}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* Second row */}
+            <div className="flex gap-2">
+              {['ㄉ', 'ㄊ', 'ㄋ', 'ㄌ'].map(char => (
+                <button
+                  key={char}
+                  className={`${getButtonStyle(char)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(char)}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* Third row */}
+            <div className="flex gap-2">
+              {['ㄍ', 'ㄎ', 'ㄏ'].map(char => (
+                <button
+                  key={char}
+                  className={`${getButtonStyle(char)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(char)}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* Fourth row */}
+            <div className="flex gap-2">
+              {['ㄐ', 'ㄑ', 'ㄒ'].map(char => (
+                <button
+                  key={char}
+                  className={`${getButtonStyle(char)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(char)}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* Fifth row */}
+            <div className="flex gap-2">
+              {['ㄓ', 'ㄔ', 'ㄕ', 'ㄖ'].map(char => (
+                <button
+                  key={char}
+                  className={`${getButtonStyle(char)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(char)}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* Sixth row */}
+            <div className="flex gap-2">
+              {['ㄗ', 'ㄘ', 'ㄙ'].map(char => (
+                <button
+                  key={char}
+                  className={`${getButtonStyle(char)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(char)}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* Seventh row */}
+            <div className="flex gap-2">
+              {['ㄧ', 'ㄨ', 'ㄩ'].map(char => (
+                <button
+                  key={char}
+                  className={`${getButtonStyle(char)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(char)}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* Eighth row */}
+            <div className="flex gap-2">
+              {['ㄚ', 'ㄛ', 'ㄜ', 'ㄝ'].map(char => (
+                <button
+                  key={char}
+                  className={`${getButtonStyle(char)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(char)}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* Ninth row */}
+            <div className="flex gap-2">
+              {['ㄞ', 'ㄟ', 'ㄠ', 'ㄡ'].map(char => (
+                <button
+                  key={char}
+                  className={`${getButtonStyle(char)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(char)}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* Tenth row */}
+            <div className="flex gap-2">
+              {['ㄢ', 'ㄣ', 'ㄤ', 'ㄥ', 'ㄦ'].map(char => (
+                <button
+                  key={char}
+                  className={`${getButtonStyle(char)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(char)}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* Tone marks */}
+            <div className="flex gap-2 mt-2">
+              {['ˊ', 'ˇ', 'ˋ', '˙'].map(tone => (
+                <button
+                  key={tone}
+                  className={`${getButtonStyle(tone)} w-12 h-12 text-3xl`}
+                  onClick={() => handleKeyClick(tone)}
+                >
+                  {tone}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-col gap-4">
-            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 1).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleKeyClick(item.key)}
-                className={getButtonStyle(item.key)}
-              >
-                {item.key}
-              </button>
-            ))}
+        ) : (
+          // Desktop original layout
+          <div className="bg-gray-100 p-8 rounded-2xl w-[90%] mx-auto" style={{ height: '560px' }}>
+            <div className="grid grid-cols-12 gap-4">
+              {ALL_KEYS.map((item) => (
+                <button
+                  key={item.key}
+                  style={{
+                    gridColumn: item.x + 1,
+                    gridRow: item.y + 1,
+                  }}
+                  className={getButtonStyle(item.key)}
+                  onClick={() => handleKeyClick(item.key)}
+                >
+                  {item.key}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-col gap-4">
-            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 2).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleKeyClick(item.key)}
-                className={getButtonStyle(item.key)}
-              >
-                {item.key}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-4">
-            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 3).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleKeyClick(item.key)}
-                className={getButtonStyle(item.key)}
-              >
-                {item.key}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-4">
-            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 4).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleKeyClick(item.key)}
-                className={getButtonStyle(item.key)}
-              >
-                {item.key}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-4">
-            {ZHUYIN_KEYS.filter(item => item.type === 'consonants' && item.x === 5).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleKeyClick(item.key)}
-                className={getButtonStyle(item.key)}
-              >
-                {item.key}
-              </button>
-            ))}
-          </div>
-
-          {/* 韻母區 */}
-          <div className="flex flex-col gap-4">
-            {ZHUYIN_KEYS.filter(item => item.type === 'vowels' && item.x === 7).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleKeyClick(item.key)}
-                className={getButtonStyle(item.key)}
-              >
-                {item.key}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-4">
-            {ZHUYIN_KEYS.filter(item => item.type === 'vowels' && item.x === 8).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleKeyClick(item.key)}
-                className={getButtonStyle(item.key)}
-              >
-                {item.key}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-4">
-            {ZHUYIN_KEYS.filter(item => item.type === 'vowels' && item.x === 9).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleKeyClick(item.key)}
-                className={getButtonStyle(item.key)}
-              >
-                {item.key}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-4">
-            {ZHUYIN_KEYS.filter(item => item.type === 'vowels' && item.x === 10).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleKeyClick(item.key)}
-                className={getButtonStyle(item.key)}
-              >
-                {item.key}
-              </button>
-            ))}
-          </div>
-
-          {/* 聲調區 */}
-          <div className="flex flex-col gap-4">
-            {['ˊ', 'ˇ', 'ˋ', '˙'].map((tone) => (
-              <button
-                key={tone}
-                onClick={() => handleKeyClick(tone)}
-                className={getButtonStyle(tone)}
-              >
-                {tone}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

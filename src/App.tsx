@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { IoReload } from 'react-icons/io5';
 
 // 注音符號與其位置的映射（保持不變）
 const ZHUYIN_KEYS = [
@@ -65,7 +64,7 @@ const ZhuyinTypingGame = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tempChar, setTempChar] = useState('');
 
-  const handleKeyClick = (key) => {
+  const handleKeyClick = (key: string) => {
     const isTone = ['ˊ', 'ˇ', 'ˋ', '˙'].includes(key);
     const isConsonant = ZHUYIN_KEYS.some(k => k.type === 'consonants' && k.key === key);
     const isSpecialVowel = ['ㄧ', 'ㄨ', 'ㄩ'].includes(key);
@@ -243,8 +242,8 @@ const ZhuyinTypingGame = () => {
                     
                     if (type === 'tone') {
                       const style = char === '˙' 
-                        ? { position: 'absolute', top: '-40px', left: '10%', transform: 'translateX(-50%)', fontSize: '5rem' }
-                        : { position: 'absolute', left: '40px', top: '70%', transform: 'translateY(-50%) rotate(-90deg)', fontSize: '5rem' };
+                        ? { position: 'absolute' as const, top: '-40px', left: '10%', transform: 'translateX(-50%)', fontSize: '5rem' }
+                        : { position: 'absolute' as const, left: '40px', top: '70%', transform: 'translateY(-50%) rotate(-90deg)', fontSize: '5rem' };
                       
                       return <span key={index} className={colorClass} style={style}>{char}</span>;
                     }

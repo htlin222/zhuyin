@@ -1,3 +1,7 @@
+![GitHub stars](https://img.shields.io/github/stars/htlin222/zhuyin?style=flat-square)
+![Last commit](https://img.shields.io/github/last-commit/htlin222/zhuyin?style=flat-square)
+![License](https://img.shields.io/github/license/htlin222/zhuyin?style=flat-square)
+
 # Zhuyin (注音) Typing Practice
 
 A React-based web application for practicing Zhuyin (Bopomofo) typing, designed to help users learn and improve their Chinese input skills.
